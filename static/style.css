@@ -1,0 +1,5 @@
+body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+#conversation { margin-top: 20px; }
+.human, .assistant { margin-bottom: 10px; padding: 10px; border-radius: 5px; }
+.human { background-color: #e6f3ff; }
+.assistant { background-color: #f0f0f0; }

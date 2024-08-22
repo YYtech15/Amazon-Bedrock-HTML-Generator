@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>対話型Amazon Bedrock HTMLジェネレーター</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        #conversation { margin-top: 20px; }
+        .human, .assistant { margin-bottom: 10px; padding: 10px; border-radius: 5px; }
+        .human { background-color: #e6f3ff; }
+        .assistant { background-color: #f0f0f0; }
+        #htmlPreview { border: 1px solid #ccc; padding: 10px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>対話型Amazon Bedrock HTMLジェネレーター</h1>
+    <form id="promptForm">
+        <textarea id="prompt" rows="4" cols="50" placeholder="HTMLを生成するためのプロンプトを入力してください"></textarea><br>
+        <button type="submit">生成</button>
+    </form>
+    <div id="conversation"></div>
+    <h2>生成されたHTML</h2>
+    <div id="htmlPreview"></div>
+    <h2>HTMLプレビュー</h2>
+    <div id="renderedHtml"></div>
+    <input type="hidden" id="conversationHistory" value="">
+
+    <script>
+        $(document).ready(function() {
+            let responseCount = 0;
+
+            $('#promptForm').submit(function(e) {
+                e.preventDefault();
+                const prompt = $('#prompt').val();
+                const conversationHistory = $('#conversationHistory').val();
+
+                $.ajax({
+                    url: '/',
+                    method: 'POST',
+                    data: {
+                        prompt: prompt,
+                        conversation_history: conversationHistory
+                    },
+                    success: function(data) {
+                        $('#conversation').append(`<div class="human"><strong>あなた:</strong> ${prompt}</div>`);
+                        $('#conversation').append(`<div class="assistant"><strong>AI:</strong> ${data.response}</div>`);
+                        $('#conversationHistory').val(data.conversation_history);
+                        $('#prompt').val('');
+
+                        // HTMLプレビューの更新
+                        $('#htmlPreview').text(data.response);
+                        $('#renderedHtml').html(data.response);
+
+                        responseCount++;
+                        if (responseCount >= 2) {
+                            $('#promptForm button').text('改善');
+                        }
+                    },
+                    error: function() {
+                        alert('エラーが発生しました。もう一度お試しください。');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
