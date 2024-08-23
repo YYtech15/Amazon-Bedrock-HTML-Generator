@@ -7,29 +7,39 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        #conversation { margin-top: 20px; }
+        #conversation { margin-top: 20px; max-height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
         .human, .assistant { margin-bottom: 10px; padding: 10px; border-radius: 5px; }
         .human { background-color: #e6f3ff; }
         .assistant { background-color: #f0f0f0; }
-        #htmlPreview { border: 1px solid #ccc; padding: 10px; margin-top: 20px; }
+        #htmlPreview { border: 1px solid #ccc; padding: 10px; margin-top: 20px; white-space: pre-wrap; font-family: monospace; max-height: 200px; overflow-y: auto; }
+        #renderedHtmlContainer { border: 1px solid #ccc; margin-top: 20px; }
+        #renderedHtml { padding: 10px; }
+        #renderedHtml * { max-width: 100%; }
+        .improvement-suggestion { background-color: #fff3cd; padding: 10px; margin-top: 10px; border-radius: 5px; }
+        #changesLog { background-color: #e8f5e9; padding: 10px; margin-top: 10px; border-radius: 5px; }
     </style>
 </head>
 <body>
     <h1>対話型Amazon Bedrock HTMLジェネレーター</h1>
     <form id="promptForm">
         <textarea id="prompt" rows="4" cols="50" placeholder="HTMLを生成するためのプロンプトを入力してください"></textarea><br>
-        <button type="submit">生成</button>
+        <button type="submit">生成/改善</button>
     </form>
     <div id="conversation"></div>
+    <div id="improvementSuggestion" class="improvement-suggestion" style="display: none;"></div>
+    <div id="changesLog"></div>
     <h2>生成されたHTML</h2>
-    <div id="htmlPreview"></div>
+    <pre id="htmlPreview"></pre>
     <h2>HTMLプレビュー</h2>
-    <div id="renderedHtml"></div>
+    <div id="renderedHtmlContainer">
+        <div id="renderedHtml"></div>
+    </div>
     <input type="hidden" id="conversationHistory" value="">
 
     <script>
         $(document).ready(function() {
             let responseCount = 0;
+            let currentHtml = '';
 
             $('#promptForm').submit(function(e) {
                 e.preventDefault();
@@ -41,22 +51,51 @@
                     method: 'POST',
                     data: {
                         prompt: prompt,
-                        conversation_history: conversationHistory
+                        conversation_history: conversationHistory,
+                        current_html: currentHtml
                     },
                     success: function(data) {
                         $('#conversation').append(`<div class="human"><strong>あなた:</strong> ${prompt}</div>`);
-                        $('#conversation').append(`<div class="assistant"><strong>AI:</strong> ${data.response}</div>`);
+                        $('#conversation').append(`<div class="assistant"><strong>AI:</strong> ${data.message}</div>`);
+                        
+                        if (data.improvement_suggestion) {
+                            $('#improvementSuggestion').html(`<strong>改善案:</strong> ${data.improvement_suggestion}`).show();
+                        } else {
+                            $('#improvementSuggestion').hide();
+                        }
+
+                        if (data.changes && data.changes.length > 0) {
+                            const changesLog = $('#changesLog');
+                            changesLog.empty();
+                            changesLog.append('<h3>変更内容:</h3>');
+                            data.changes.forEach(change => {
+                                changesLog.append(`<p>${change}</p>`);
+                            });
+                        }
+
                         $('#conversationHistory').val(data.conversation_history);
                         $('#prompt').val('');
 
                         // HTMLプレビューの更新
-                        $('#htmlPreview').text(data.response);
-                        $('#renderedHtml').html(data.response);
+                        currentHtml = data.response;
+                        $('#htmlPreview').text(currentHtml);
+                        
+                        // レンダリングされたHTMLの更新
+                        const iframe = document.createElement('iframe');
+                        iframe.style.width = '100%';
+                        iframe.style.height = '300px';
+                        iframe.style.border = 'none';
+                        $('#renderedHtml').html(iframe);
+                        
+                        iframe.contentWindow.document.open();
+                        iframe.contentWindow.document.write(currentHtml);
+                        iframe.contentWindow.document.close();
 
                         responseCount++;
-                        if (responseCount >= 2) {
-                            $('#promptForm button').text('改善');
-                        }
+                        $('#promptForm button').text('改善');
+
+                        // 会話履歴を最新の状態にスクロール
+                        $('#conversation').scrollTop($('#conversation')[0].scrollHeight);
                     },
                     error: function() {
                         alert('エラーが発生しました。もう一度お試しください。');
